@@ -1,0 +1,130 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  
+  /* Admin Panel Color Scheme */
+  --admin-primary: #2563eb;
+  --admin-primary-hover: #1d4ed8;
+  --admin-secondary: #64748b;
+  --admin-accent: #0ea5e9;
+  --admin-success: #10b981;
+  --admin-warning: #f59e0b;
+  --admin-error: #ef4444;
+  --admin-surface: #f8fafc;
+  --admin-card: #ffffff;
+  --admin-border: #e2e8f0;
+  --admin-text-primary: #0f172a;
+  --admin-text-secondary: #64748b;
+  --admin-text-muted: #94a3b8;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  
+  /* Custom admin colors */
+  --color-admin-primary: var(--admin-primary);
+  --color-admin-primary-hover: var(--admin-primary-hover);
+  --color-admin-secondary: var(--admin-secondary);
+  --color-admin-accent: var(--admin-accent);
+  --color-admin-success: var(--admin-success);
+  --color-admin-warning: var(--admin-warning);
+  --color-admin-error: var(--admin-error);
+  --color-admin-surface: var(--admin-surface);
+  --color-admin-card: var(--admin-card);
+  --color-admin-border: var(--admin-border);
+  --color-admin-text-primary: var(--admin-text-primary);
+  --color-admin-text-secondary: var(--admin-text-secondary);
+  --color-admin-text-muted: var(--admin-text-muted);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+    
+    /* Dark mode admin colors */
+    --admin-primary: #3b82f6;
+    --admin-primary-hover: #2563eb;
+    --admin-secondary: #64748b;
+    --admin-accent: #0ea5e9;
+    --admin-success: #10b981;
+    --admin-warning: #f59e0b;
+    --admin-error: #ef4444;
+    --admin-surface: #0f172a;
+    --admin-card: #1e293b;
+    --admin-border: #334155;
+    --admin-text-primary: #f1f5f9;
+    --admin-text-secondary: #cbd5e1;
+    --admin-text-muted: #94a3b8;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Admin Panel Specific Styles */
+.admin-gradient {
+  background: linear-gradient(135deg, var(--admin-primary) 0%, var(--admin-accent) 100%);
+}
+
+.admin-card-hover {
+  transition: all 0.2s ease-in-out;
+}
+
+.admin-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.admin-status-badge {
+  @apply px-3 py-1 rounded-full text-xs font-medium;
+}
+
+.admin-nav-item {
+  @apply relative px-4 py-2 rounded-lg font-medium transition-all duration-200;
+}
+
+.admin-nav-item.active {
+  @apply text-white;
+  background: var(--admin-primary);
+}
+
+.admin-nav-item:not(.active) {
+  @apply text-gray-600 hover:text-gray-900 hover:bg-gray-100;
+}
+
+/* Admin Input Styling */
+.admin-input {
+  background-color: var(--admin-surface) !important;
+  border-color: var(--admin-border) !important;
+  color: var(--admin-text-primary) !important;
+}
+
+.admin-input::placeholder {
+  color: var(--admin-text-muted) !important;
+  opacity: 0.7;
+}
+
+.admin-input:focus {
+  border-color: var(--admin-primary) !important;
+  box-shadow: 0 0 0 2px rgba(30, 64, 175, 0.1) !important;
+}
+
+/* Admin Button Styling */
+.admin-button-primary {
+  background-color: var(--admin-primary) !important;
+  color: white !important;
+  border: none !important;
+}
+
+.admin-button-primary:hover {
+  opacity: 0.9 !important;
+}

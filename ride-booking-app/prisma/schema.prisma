@@ -1,0 +1,196 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  phone     String?
+  role      UserRole @default(CUSTOMER)
+  password  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  bookings Booking[]
+  
+  @@map("users")
+}
+
+model Booking {
+  id                String        @id @default(cuid())
+  bookingNumber     String        @unique
+  
+  // Customer Information
+  customerName      String
+  customerEmail     String
+  customerPhone     String
+  userId            String?
+  
+  // Trip Details
+  pickupAddress     String
+  dropoffAddress    String
+  pickupDate        DateTime
+  pickupTime        String
+  
+  // Route Information
+  distance          Float         // in meters
+  duration          Int           // in seconds
+  estimatedFare     Float
+  actualFare        Float?
+  
+  // Booking Status
+  status            BookingStatus @default(PENDING)
+  paymentStatus     PaymentStatus @default(PENDING)
+  
+  // Payment Information
+  // Payment processing removed - bookings are confirmed directly
+  
+  // Driver Assignment
+  driverId          String?
+  assignedAt        DateTime?
+  
+  // Timestamps
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  completedAt       DateTime?
+  
+  // Relations
+  user              User?         @relation(fields: [userId], references: [id])
+  driver            Driver?       @relation(fields: [driverId], references: [id])
+  
+  @@map("bookings")
+}
+
+model Driver {
+  id              String   @id @default(cuid())
+  name            String
+  email           String   @unique
+  phone           String
+  licenseNumber   String   @unique
+  vehicleModel    String
+  vehiclePlate    String   @unique
+  vehicleColor    String
+  isActive        Boolean  @default(true)
+  isAvailable     Boolean  @default(true)
+  rating          Float    @default(5.0)
+  totalRides      Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  bookings        Booking[]
+  
+  @@map("drivers")
+}
+
+model PricingRule {
+  id              String      @id @default(cuid())
+  name            String
+  description     String?
+  
+  // Base pricing
+  baseFare        Float       // Base fare for trips
+  perMileRate     Float       // Rate per mile
+  perMinuteRate   Float       // Rate per minute
+  minimumFare     Float       // Minimum fare
+  
+  // Distance-based pricing
+  freeDistance    Float       @default(0) // Distance included in base fare
+  
+  // Time-based multipliers
+  peakHourMultiplier Float    @default(1.0)
+  weekendMultiplier  Float    @default(1.0)
+  
+  // Special conditions
+  isActive        Boolean     @default(true)
+  validFrom       DateTime?
+  validTo         DateTime?
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  @@map("pricing_rules")
+}
+
+model Settings {
+  id              String   @id @default(cuid())
+  key             String   @unique
+  value           String
+  description     String?
+  category        String   @default("general")
+  isEncrypted     Boolean  @default(false)
+  isSensitive     Boolean  @default(false)
+  dataType        String   @default("string") // string, number, boolean, json
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("settings")
+}
+
+model EmailTemplate {
+  id              String   @id @default(cuid())
+  name            String   @unique
+  subject         String
+  htmlContent     String
+  textContent     String?
+  variables       String?  // JSON string of available variables
+  isActive        Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("email_templates")
+}
+
+model AuditLog {
+  id              String   @id @default(cuid())
+  userId          String?
+  action          String
+  resource        String
+  resourceId      String?
+  oldValues       String?  // JSON string
+  newValues       String?  // JSON string
+  ipAddress       String?
+  userAgent       String?
+  
+  createdAt       DateTime @default(now())
+  
+  @@map("audit_logs")
+}
+
+enum UserRole {
+  CUSTOMER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
