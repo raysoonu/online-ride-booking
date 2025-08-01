@@ -249,4 +249,12 @@ export class BookingService {
       cancelledBookings,
     }
   }
+
+  static async deleteBooking(id: string) {
+    return await prisma.booking.delete({
+      where: {
+        id,
+      },
+    })
+  }
 }

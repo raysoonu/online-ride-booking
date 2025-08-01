@@ -61,6 +61,52 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// DELETE /api/admin/bookings - Delete a booking
+export async function DELETE(request: NextRequest) {
+  try {
+    const user = await checkAdminAuth(request)
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+    
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Booking ID is required' },
+        { status: 400 }
+      )
+    }
+    
+    // Check if booking exists
+    const booking = await BookingService.getBookingById(id)
+    if (!booking) {
+      return NextResponse.json(
+        { error: 'Booking not found' },
+        { status: 404 }
+      )
+    }
+    
+    // Delete the booking
+    await BookingService.deleteBooking(id)
+    
+    return NextResponse.json(
+      { message: 'Booking deleted successfully' },
+      { status: 200 }
+    )
+  } catch (error) {
+    console.error('Error deleting booking:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
 // POST /api/admin/bookings - Create a new booking (admin only)
 export async function POST(request: NextRequest) {
   try {

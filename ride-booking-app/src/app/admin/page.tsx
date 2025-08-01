@@ -192,7 +192,7 @@ export default function AdminPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ bookingId, status })
+        body: JSON.stringify({ id: bookingId, status })
       })
 
       if (response.ok) {
@@ -203,6 +203,35 @@ export default function AdminPage() {
       }
     } catch (error) {
       console.error('Failed to update booking status:', error)
+    }
+  }
+
+  const deleteBooking = async (bookingId: string) => {
+    if (!confirm('Are you sure you want to delete this booking? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      const token = localStorage.getItem('adminToken')
+      const response = await fetch(`/api/admin/bookings?id=${bookingId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        await fetchDashboardData()
+        if (activeTab === 'bookings') {
+          await fetchAllBookings()
+        }
+      } else {
+        const errorData = await response.json()
+        alert(`Failed to delete booking: ${errorData.error}`)
+      }
+    } catch (error) {
+      console.error('Failed to delete booking:', error)
+      alert('Failed to delete booking. Please try again.')
     }
   }
 
@@ -543,6 +572,14 @@ export default function AdminPage() {
                           Complete
                         </Button>
                       )}
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => deleteBooking(booking.id)}
+                        className="ml-2"
+                      >
+                        Delete
+                      </Button>
                     </div>
                   </div>
                 ))}
