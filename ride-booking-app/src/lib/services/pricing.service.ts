@@ -32,7 +32,7 @@ export class PricingService {
   }
   
   static async calculateFare(
-    distanceInMeters: number,
+     distanceInMeters: number,
     durationInSeconds: number,
     pickupDateTime: Date
   ): Promise<PricingCalculation> {

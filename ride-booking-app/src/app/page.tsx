@@ -106,14 +106,14 @@ export default function Home() {
             <div>
               <h3 className="font-semibold mb-4">Contact</h3>
               <ul className="space-y-2 text-gray-400">
-                <li>Phone: (123) 456-7890</li>
+                <li>Phone: 9809619447</li>
                 <li>Email: support@ridebooking.com</li>
                 <li>24/7 Customer Service</li>
               </ul>
             </div>
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 RideBooking. All rights reserved.</p>
+            <p>&copy; 2025 RideBooking. All rights reserved.</p>
           </div>
         </div>
       </footer>

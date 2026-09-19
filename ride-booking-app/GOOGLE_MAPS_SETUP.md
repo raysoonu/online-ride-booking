@@ -89,6 +89,7 @@ Once configured correctly, you should see:
 - ✅ Route displays when both addresses are entered
 - ✅ Fare calculation works based on distance
 
+
 ## 7. Current API Key Status
 
 Your current API key in `.env`:
