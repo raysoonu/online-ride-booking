@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { BookingService } from '@/lib/services/booking.service'
 import { PricingService } from '@/lib/services/pricing.service'
-import { EmailService } from '@/lib/services/email.service'
-import { generateBookingNumber } from '@/lib/utils'
-import { BookingStatus, PaymentStatus } from '@prisma/client'
+import { EsewaService } from '@/lib/services/esewa.service'
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,7 +18,6 @@ export async function POST(request: NextRequest) {
       duration,
     } = body
 
-    // Validate required fields
     if (!customerName || !customerEmail || !customerPhone || !pickupAddress || !dropoffAddress || !pickupDate || !pickupTime) {
       return NextResponse.json(
         { error: 'Missing required fields' },
@@ -28,7 +25,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Calculate fare using pricing service
     const distanceMeters = distance ? Number(distance) : 0
     const durationSeconds = duration ? Number(duration) : 0
     const pickupDateTime = new Date(`${pickupDate}T${pickupTime}`)
@@ -41,7 +37,7 @@ export async function POST(request: NextRequest) {
 
     const finalFare = Number(fareCalculation.totalFare.toFixed(2))
 
-    // Create booking in database
+    // Create booking in database with PENDING status
     const booking = await BookingService.createBooking({
       name: customerName,
       email: customerEmail,
@@ -55,39 +51,27 @@ export async function POST(request: NextRequest) {
       estimatedFare: finalFare,
     })
 
-    // Update booking status to confirmed and payment to completed
-    await BookingService.updateBookingStatus(booking.id, BookingStatus.CONFIRMED)
-    await BookingService.updatePaymentStatus(booking.id, PaymentStatus.PAID)
+    const baseUrl = process.env.NEXTAUTH_URL || request.nextUrl.origin
 
-    // Send confirmation email
-    try {
-      await EmailService.sendBookingConfirmation({
-        customerEmail: booking.customerEmail,
-        customerName: booking.customerName,
-        bookingNumber: booking.bookingNumber,
-        pickupAddress: booking.pickupAddress,
-        dropoffAddress: booking.dropoffAddress,
-        pickupDate: booking.pickupDate,
-        pickupTime: booking.pickupTime,
-        fare: booking.estimatedFare,
-      })
-    } catch (emailError) {
-      console.error('Failed to send confirmation email:', emailError)
-      // Don't fail the booking if email fails
-    }
+    // Prepare eSewa payment payload
+    const { payload, gatewayUrl } = EsewaService.preparePaymentPayload({
+      amount: fareCalculation.totalFare,
+      bookingNumber: booking.bookingNumber,
+      baseUrl,
+    })
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       bookingNumber: booking.bookingNumber,
-      fare: fareCalculation.totalFare,
-      fareBreakdown: fareCalculation,
-      message: 'Booking confirmed successfully!'
+      bookingId: booking.id,
+      amount: fareCalculation.totalFare,
+      payload,
+      gatewayUrl,
     })
   } catch (error) {
-    console.error('Error creating booking:', error)
-    
+    console.error('Error initiating eSewa payment:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Failed to initiate eSewa payment' },
       { status: 500 }
     )
   }

@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/prisma'
 import { PricingCalculation } from '@/types'
 
+import { settingsService } from '@/lib/services/settings.service'
+
 export class PricingService {
   static async getActivePricingRule() {
     const now = new Date()
@@ -32,63 +34,58 @@ export class PricingService {
   }
   
   static async calculateFare(
-     distanceInMeters: number,
+    distanceInMeters: number,
     durationInSeconds: number,
     pickupDateTime: Date
   ): Promise<PricingCalculation> {
-    const pricingRule = await this.getActivePricingRule()
-    
-    if (!pricingRule) {
-      // Fallback to default pricing if no rule found
-      return this.getDefaultPricing(distanceInMeters, durationInSeconds)
-    }
-    
-    const distanceInMiles = distanceInMeters / 1609.34
-    const durationInMinutes = durationInSeconds / 60
-    
-    // Calculate base components
-    let baseFare = pricingRule.baseFare
-    let distanceFare = 0
-    let timeFare = 0
-    
-    // Calculate distance fare (only charge for distance beyond free distance)
-    const chargeableDistance = Math.max(0, distanceInMiles - pricingRule.freeDistance)
-    distanceFare = chargeableDistance * pricingRule.perMileRate
-    
-    // Calculate time fare
-    timeFare = durationInMinutes * pricingRule.perMinuteRate
-    
-    // Calculate multipliers
-    let multiplier = 1.0
-    
-    // Peak hour multiplier (6-9 AM and 5-8 PM)
-    const hour = pickupDateTime.getHours()
-    if ((hour >= 6 && hour <= 9) || (hour >= 17 && hour <= 20)) {
-      multiplier *= pricingRule.peakHourMultiplier
-    }
-    
-    // Weekend multiplier (Saturday and Sunday)
-    const dayOfWeek = pickupDateTime.getDay()
-    if (dayOfWeek === 0 || dayOfWeek === 6) {
-      multiplier *= pricingRule.weekendMultiplier
-    }
-    
-    // Calculate total before applying minimum
-    const subtotal = (baseFare + distanceFare + timeFare) * multiplier
-    const totalFare = Math.max(subtotal, pricingRule.minimumFare)
-    
-    return {
-      baseFare: pricingRule.baseFare,
-      distanceFare,
-      timeFare,
-      multiplier,
-      totalFare,
-      breakdown: {
-        base: baseFare,
-        distance: distanceFare,
-        time: timeFare,
-        surge: (subtotal - (baseFare + distanceFare + timeFare)),
-      },
+    const distanceInKm = distanceInMeters / 1000
+
+    try {
+      const pricingSettings = await settingsService.getSettingsByCategory('pricing')
+      const settingsMap: Record<string, any> = {}
+      pricingSettings.forEach((s) => {
+        settingsMap[s.key] = s.actualValue
+      })
+
+      const ratePerKm = parseFloat(settingsMap.rate_per_km) || 20
+      const minimumFare = parseFloat(settingsMap.minimum_fare) || 50
+
+      const rawFare = distanceInKm * ratePerKm
+      const totalFare = Math.max(rawFare, minimumFare)
+      const roundedFare = Number(totalFare.toFixed(2))
+
+      return {
+        baseFare: minimumFare,
+        distanceFare: rawFare,
+        timeFare: 0,
+        multiplier: 1.0,
+        totalFare: roundedFare,
+        breakdown: {
+          base: minimumFare,
+          distance: rawFare,
+          time: 0,
+          surge: 0,
+        },
+      }
+    } catch (e) {
+      console.warn('Failed to load settings in PricingService, using default KM pricing:', e)
+      const rawFare = distanceInKm * 20
+      const totalFare = Math.max(rawFare, 50)
+      const roundedFare = Number(totalFare.toFixed(2))
+
+      return {
+        baseFare: 50,
+        distanceFare: rawFare,
+        timeFare: 0,
+        multiplier: 1.0,
+        totalFare: roundedFare,
+        breakdown: {
+          base: 50,
+          distance: rawFare,
+          time: 0,
+          surge: 0,
+        },
+      }
     }
   }
   

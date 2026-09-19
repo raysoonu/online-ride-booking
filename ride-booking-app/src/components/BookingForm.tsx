@@ -24,6 +24,7 @@ export default function BookingForm() {
   const [bookingConfirmed, setBookingConfirmed] = useState(false)
   const [bookingNumber, setBookingNumber] = useState<string>('')
   const [mapLoaded, setMapLoaded] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState<'esewa' | 'cash'>('esewa')
 
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<google.maps.Map | null>(null)
@@ -67,9 +68,19 @@ export default function BookingForm() {
   const initializeMap = async () => {
     try {
       const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-      if (!apiKey) {
-        console.error('Google Maps API key is not configured')
-        setMessage({ type: 'error', text: 'Google Maps is not properly configured. Please contact support.' })
+      if (!apiKey || apiKey.trim() === '' || apiKey === 'your_google_maps_api_key_here') {
+        console.warn('Google Maps API key is not configured. Demo Mode activated.')
+        setMessage({
+          type: 'error',
+          text: 'Google Maps API key is not configured in .env.local. Demo Mode enabled: you can enter addresses manually and test eSewa payment & booking!'
+        })
+        // Set initial route info for demo mode so form and fare calculation work out of the box
+        setRouteInfo({
+          distance: { text: '8.5 km', value: 8500 },
+          duration: { text: '20 mins', value: 1200 },
+          startLocation: { lat: 27.7172, lng: 85.3240 },
+          endLocation: { lat: 27.7272, lng: 85.3340 }
+        })
         return
       }
 
@@ -667,22 +678,58 @@ export default function BookingForm() {
 
       console.log('Sending booking data:', bookingData)
 
-      const response = await fetch('/api/create-booking', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(bookingData),
-      })
+      if (paymentMethod === 'esewa') {
+        const response = await fetch('/api/payments/esewa/initiate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(bookingData),
+        })
 
-      if (!response.ok) {
-        throw new Error('Failed to create booking')
+        if (!response.ok) {
+          throw new Error('Failed to initiate eSewa payment')
+        }
+
+        const data = await response.json()
+        if (data.success && data.payload && data.gatewayUrl) {
+          // Create dynamic hidden form to POST to eSewa gateway
+          const form = document.createElement('form')
+          form.method = 'POST'
+          form.action = data.gatewayUrl
+
+          Object.entries(data.payload).forEach(([key, value]) => {
+            const hiddenField = document.createElement('input')
+            hiddenField.type = 'hidden'
+            hiddenField.name = key
+            hiddenField.value = value as string
+            form.appendChild(hiddenField)
+          })
+
+          document.body.appendChild(form)
+          form.submit()
+          return
+        } else {
+          throw new Error(data.error || 'eSewa payment initiation failed')
+        }
+      } else {
+        const response = await fetch('/api/create-booking', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(bookingData),
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to create booking')
+        }
+
+        const result = await response.json()
+        setBookingNumber(result.bookingNumber)
+        setBookingConfirmed(true)
+        setMessage({ type: 'success', text: 'Booking confirmed successfully!' })
       }
-
-      const result = await response.json()
-      setBookingNumber(result.bookingNumber)
-      setBookingConfirmed(true)
-      setMessage({ type: 'success', text: 'Booking confirmed successfully!' })
     } catch (error) {
       console.error('Error creating booking:', error)
       setMessage({ type: 'error', text: 'Failed to create booking. Please try again.' })
@@ -937,19 +984,84 @@ export default function BookingForm() {
           )}
         </div>
 
+        {/* Payment Method Selection */}
+        {!bookingConfirmed && (
+          <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+              💳 Select Payment Gateway
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <label
+                className={`flex items-center space-x-4 p-4 rounded-xl border-2 cursor-pointer transition ${
+                  paymentMethod === 'esewa'
+                    ? 'border-green-600 bg-green-50/50 text-gray-900 shadow-sm'
+                    : 'border-gray-200 hover:border-gray-300 bg-white text-gray-700'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="esewa"
+                  checked={paymentMethod === 'esewa'}
+                  onChange={() => setPaymentMethod('esewa')}
+                  className="w-4 h-4 text-green-600 focus:ring-green-500"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2">
+                    <span className="font-bold text-green-700 text-lg">eSewa Wallet</span>
+                    <span className="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded font-semibold">Nepal Standard</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5">Instant online payment via eSewa</p>
+                </div>
+              </label>
+
+              <label
+                className={`flex items-center space-x-4 p-4 rounded-xl border-2 cursor-pointer transition ${
+                  paymentMethod === 'cash'
+                    ? 'border-blue-600 bg-blue-50/50 text-gray-900 shadow-sm'
+                    : 'border-gray-200 hover:border-gray-300 bg-white text-gray-700'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="cash"
+                  checked={paymentMethod === 'cash'}
+                  onChange={() => setPaymentMethod('cash')}
+                  className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                />
+                <div className="flex-1">
+                  <div className="font-bold text-gray-900 text-lg">Pay on Pickup</div>
+                  <p className="text-xs text-gray-500 mt-0.5">Pay in cash or direct transfer later</p>
+                </div>
+              </label>
+            </div>
+          </div>
+        )}
+
         {/* Submit Button */}
         {!bookingConfirmed ? (
           <button
             type="submit"
             disabled={isLoading || !routeInfo}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg transition duration-200 flex items-center justify-center space-x-2"
+            className={`w-full text-white font-semibold py-3 px-6 rounded-lg transition duration-200 flex items-center justify-center space-x-2 ${
+              paymentMethod === 'esewa'
+                ? 'bg-green-600 hover:bg-green-700 disabled:bg-gray-400'
+                : 'bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400'
+            }`}
           >
             {isLoading ? (
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
               <CheckCircle className="h-5 w-5" />
             )}
-            <span>{isLoading ? 'Processing...' : `Confirm Booking - ${formatCurrency(fare)}`}</span>
+            <span>
+              {isLoading
+                ? 'Processing...'
+                : paymentMethod === 'esewa'
+                ? `Pay with eSewa - NPR ${fare.toFixed(2)}`
+                : `Confirm Booking - NPR ${fare.toFixed(2)}`}
+            </span>
           </button>
         ) : (
           <div className="text-center py-8">
